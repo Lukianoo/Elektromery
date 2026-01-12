@@ -2,165 +2,135 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<title>Historie spotřeby</title>
+<title>Historie spotřeby uhlí</title>
 
 <style>
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(135deg, #1e3c72, #2a5298);
-  padding: 30px;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(180deg, #1f3b73, #0f2347);
+    padding: 30px;
 }
 
-/* ---------- BUTTONS ---------- */
-.switches {
-  background: white;
-  padding: 20px;
-  border-radius: 16px;
-  margin-bottom: 25px;
+/* KONTEJNER */
+.container {
+    max-width: 1100px;
+    margin: auto;
 }
 
-.switch {
-  padding: 14px;
-  border-radius: 10px;
-  color: white;
-  font-weight: bold;
-  margin-bottom: 10px;
-  text-align: center;
-  cursor: pointer;
-  opacity: 0.6;
+/* TLAČÍTKA */
+.buttons {
+    margin-bottom: 20px;
 }
 
-.switch.active {
-  opacity: 1;
+.btn {
+    width: 100%;
+    border: none;
+    color: white;
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
 }
 
-.switch.orange { background: #f57c00; }
-.switch.blue   { background: #1565c0; }
-.switch.green  { background: #2e7d32; }
+.btn.orange { background: #ef6c00; }
+.btn.blue   { background: #1565c0; }
+.btn.green  { background: #2e7d32; }
 
-/* ---------- CARD ---------- */
+/* KARTA */
 .card {
-  background: white;
-  border-radius: 16px;
-  padding: 25px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
 }
 
+/* NADPIS */
 .card h3 {
-  margin-top: 0;
-  color: #1565c0;
+    margin-top: 0;
+    color: #0d47a1;
 }
 
-/* ---------- TABLE ---------- */
+/* TABULKA */
 table {
-  width: 100%;
-  border-collapse: collapse;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
 }
 
-thead {
-  background: #f1f1f1;
+th {
+    background: #f1f1f1;
+    text-align: left;
+    padding: 10px;
 }
 
-th, td {
-  padding: 12px;
-  text-align: center;
+td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
 }
 
-tbody tr:nth-child(even) {
-  background: #fafafa;
+td:nth-child(2),
+td:nth-child(3) {
+    text-align: center;
 }
 </style>
 </head>
 
 <body>
+<div class="container">
 
-<!-- PŘEPÍNAČE -->
-<div class="switches">
-  <div class="switch orange active" onclick="showDaily()">📅 Denní historie spotřeby</div>
-  <div class="switch blue" onclick="showMonthly()">🗓️ Měsíční historie spotřeby</div>
-  <div class="switch green" onclick="showTotal()">📊 Celková historie spotřeby</div>
-</div>
+    <!-- TLAČÍTKA -->
+    <div class="buttons">
+        <button class="btn orange">📅 Denní historie spotřeby</button>
+        <button class="btn blue">🗓️ Měsíční historie spotřeby</button>
+        <button class="btn green">📊 Celková historie spotřeby</button>
+    </div>
 
-<!-- TABULKA -->
-<div class="card">
-  <h3 id="title">📅 Denní historie – uhlí & cena</h3>
+    <!-- TABULKA -->
+    <div class="card">
+        <h3>📊 Denní historie – uhlí & cena</h3>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Období</th>
-        <th>Spotřeba (kg)</th>
-        <th>Cena (Kč)</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Spotřeba (kg)</th>
+                    <th>Cena (Kč)</th>
+                </tr>
+            </thead>
+            <tbody id="history">
+                <!-- data se plní JS -->
+            </tbody>
+        </table>
+    </div>
+
 </div>
 
 <script>
-// ------------------ DEMO DATA ------------------
-const dailyData = [
-  { label: "12. 1. 2026", kg: 10, price: 62 },
-  { label: "11. 1. 2026", kg: 30, price: 186 },
-  { label: "10. 1. 2026", kg: 28, price: 174 },
-  { label: "9. 1. 2026", kg: 30, price: 185 }
+const data = [
+    { date: "12. 1. 2026", kg: 10, price: 62 },
+    { date: "11. 1. 2026", kg: 30, price: 186 },
+    { date: "10. 1. 2026", kg: 28, price: 174 },
+    { date: "9. 1. 2026",  kg: 30, price: 185 },
+    { date: "8. 1. 2026",  kg: 34, price: 210 },
+    { date: "7. 1. 2026",  kg: 35, price: 218 },
+    { date: "6. 1. 2026",  kg: 34, price: 211 },
+    { date: "5. 1. 2026",  kg: 33, price: 205 },
+    { date: "4. 1. 2026",  kg: 30, price: 185 },
+    { date: "3. 1. 2026",  kg: 9,  price: 55 }
 ];
 
-const monthlyData = [
-  { label: "Leden 2026", kg: 167, price: 1020 },
-  { label: "Prosinec 2025", kg: 190, price: 1160 }
-];
+const tbody = document.getElementById("history");
 
-const totalData = [
-  { label: "Celkem", kg: 357, price: 2180 }
-];
-
-// ------------------ LOGIKA ------------------
-function setActive(index) {
-  document.querySelectorAll(".switch").forEach((b, i) => {
-    b.classList.toggle("active", i === index);
-  });
-}
-
-function renderTable(data) {
-  const tbody = document.getElementById("tableBody");
-  tbody.innerHTML = "";
-
-  data.forEach(row => {
+data.forEach(row => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${row.label}</td>
-      <td>${row.kg}</td>
-      <td>${row.price}</td>
+        <td>${row.date}</td>
+        <td>${row.kg}</td>
+        <td>${row.price}</td>
     `;
     tbody.appendChild(tr);
-  });
-}
-
-function showDaily() {
-  setActive(0);
-  document.getElementById("title").textContent =
-    "📅 Denní historie – uhlí & cena";
-  renderTable(dailyData);
-}
-
-function showMonthly() {
-  setActive(1);
-  document.getElementById("title").textContent =
-    "🗓️ Měsíční historie – uhlí & cena";
-  renderTable(monthlyData);
-}
-
-function showTotal() {
-  setActive(2);
-  document.getElementById("title").textContent =
-    "📊 Celková historie – uhlí & cena";
-  renderTable(totalData);
-}
-
-// init
-showDaily();
+});
 </script>
 
 </body>
