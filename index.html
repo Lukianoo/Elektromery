@@ -2,157 +2,114 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<title>Elektroměr – přehled</title>
+<title>Historie spotřeby</title>
 
 <style>
 body {
-  font-family: Arial, sans-serif;
-  background: #f4f6f8;
   margin: 0;
-  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  padding: 30px;
 }
 
-h1 {
-  margin-bottom: 10px;
-}
-
-.card {
+/* ---------- BUTTONS ---------- */
+.switches {
   background: white;
   padding: 20px;
-  margin-bottom: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  border-radius: 16px;
+  margin-bottom: 25px;
 }
 
-.value {
-  font-size: 2em;
+.switch {
+  padding: 14px;
+  border-radius: 10px;
+  color: white;
   font-weight: bold;
-}
-
-.buttons button {
-  padding: 10px 15px;
-  margin-right: 10px;
-  font-size: 1em;
+  margin-bottom: 10px;
+  text-align: center;
   cursor: pointer;
 }
 
+.switch.orange { background: #f57c00; }
+.switch.blue   { background: #1565c0; }
+.switch.green  { background: #2e7d32; }
+
+/* ---------- CARD ---------- */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+}
+
+.card h3 {
+  margin-top: 0;
+  color: #1565c0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- TABLE ---------- */
 table {
   width: 100%;
   border-collapse: collapse;
 }
 
+thead {
+  background: #f1f1f1;
+}
+
 th, td {
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
+  padding: 12px;
+  text-align: center;
 }
 
 th {
-  background: #eee;
+  font-weight: bold;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafafa;
 }
 </style>
 </head>
 
 <body>
 
-<h1>⚡ Elektroměr – online přehled</h1>
-
-<div class="card">
-  <div>Aktuální výkon</div>
-  <div class="value" id="power">---</div>
-  <div>W</div>
+<!-- PŘEPÍNAČE -->
+<div class="switches">
+  <div class="switch orange">📅 Denní historie spotřeby</div>
+  <div class="switch blue">🗓️ Měsíční historie spotřeby</div>
+  <div class="switch green">📊 Celková historie spotřeby</div>
 </div>
 
+<!-- TABULKA -->
 <div class="card">
-  <div>Celková energie</div>
-  <div class="value" id="energy">---</div>
-  <div>kWh</div>
-</div>
+  <h3>📊 Denní historie – uhlí & cena</h3>
 
-<div class="card buttons">
-  <button onclick="loadToday()">📅 Dnes</button>
-  <button onclick="loadMonth()">🗓️ Tento měsíc</button>
-</div>
-
-<div class="card">
-  <h3>Spotřeba</h3>
   <table>
     <thead>
       <tr>
-        <th>Období</th>
-        <th>Spotřeba (kWh)</th>
+        <th>Datum</th>
+        <th>Spotřeba (kg)</th>
+        <th>Cena (Kč)</th>
       </tr>
     </thead>
-    <tbody id="history"></tbody>
+    <tbody>
+      <tr><td>12. 1. 2026</td><td>10</td><td>62</td></tr>
+      <tr><td>11. 1. 2026</td><td>30</td><td>186</td></tr>
+      <tr><td>10. 1. 2026</td><td>28</td><td>174</td></tr>
+      <tr><td>9. 1. 2026</td><td>30</td><td>185</td></tr>
+      <tr><td>8. 1. 2026</td><td>34</td><td>210</td></tr>
+      <tr><td>7. 1. 2026</td><td>35</td><td>218</td></tr>
+      <tr><td>6. 1. 2026</td><td>34</td><td>211</td></tr>
+      <tr><td>5. 1. 2026</td><td>33</td><td>205</td></tr>
+      <tr><td>4. 1. 2026</td><td>30</td><td>185</td></tr>
+      <tr><td>3. 1. 2026</td><td>9</td><td>55</td></tr>
+    </tbody>
   </table>
 </div>
 
-<script>
-const CHANNEL_ID = 3224423;
-const BASE_URL = "https://api.thingspeak.com/channels/" + CHANNEL_ID;
-
-async function loadLatest() {
-  const res = await fetch(BASE_URL + "/feeds/last.json");
-  const data = await res.json();
-
-  document.getElementById("power").textContent =
-    Number(data.field4).toFixed(0);
-
-  document.getElementById("energy").textContent =
-    Number(data.field2).toFixed(3);
-}
-
-async function loadToday() {
-  const res = await fetch(BASE_URL + "/feeds.json?results=500");
-  const data = await res.json();
-
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-
-  renderConsumption(data.feeds, start, "Dnes");
-}
-
-async function loadMonth() {
-  const res = await fetch(BASE_URL + "/feeds.json?results=2000");
-  const data = await res.json();
-
-  const start = new Date();
-  start.setDate(1);
-  start.setHours(0, 0, 0, 0);
-
-  renderConsumption(data.feeds, start, "Tento měsíc");
-}
-
-function renderConsumption(feeds, startTime, label) {
-  const tbody = document.getElementById("history");
-  tbody.innerHTML = "";
-
-  let energies = [];
-
-  feeds.forEach(f => {
-    const time = new Date(f.created_at);
-    if (time >= startTime && f.field2 !== null) {
-      energies.push(Number(f.field2));
-    }
-  });
-
-  if (energies.length < 2) return;
-
-  const consumption =
-    Math.max(...energies) - Math.min(...energies);
-
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>${label}</td>
-    <td>${consumption.toFixed(3)}</td>
-  `;
-  tbody.appendChild(tr);
-}
-
-// auto refresh
-loadLatest();
-setInterval(loadLatest, 30000);
-</script>
-
 </body>
 </html>
-
