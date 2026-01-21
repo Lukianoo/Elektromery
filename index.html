@@ -19,8 +19,7 @@ header{
   padding:15px 20px;
   display:flex;
   justify-content:space-between;
-  flex-wrap:wrap;
-  align-items:center;
+  flex-wrap: wrap;
 }
 main{max-width:1400px;margin:auto;padding:20px}
 .grid{
@@ -52,6 +51,7 @@ button{
   cursor:pointer;
   width:100%;
   margin-bottom:10px;
+  box-sizing:border-box;
 }
 #historyBtn{background:#ef6c00}
 #monthHistoryBtn{background:#1565c0}
@@ -59,21 +59,21 @@ button{
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px;text-align:center}
 th{background:#eee}
-
-@media (max-width:600px){
-  .settings{grid-template-columns:1fr}
-}
 </style>
 </head>
 
 <body>
 
-<header>
+<header style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:15px 20px;background:#000;color:#fff;">
   <div id="clock" style="font-size:25px;"></div>
   <div style="flex:1;text-align:center;font-size:25px;font-weight:700;">
     Attack FD 25 AUTOMAT – PANEL KOTELNY
   </div>
-  <button id="fullscreenBtn" style="width:auto;background:#6a1b9a">⛶ Fullscreen</button>
+  <div>
+    <button id="fullscreenBtn" style="padding:6px 12px;font-size:14px;border-radius:8px;background:#6a1b9a;color:#fff;border:none;cursor:pointer;">
+      ⛶ Fullscreen
+    </button>
+  </div>
 </header>
 
 <main>
@@ -98,43 +98,20 @@ th{background:#eee}
   <div><div class="sub">CENA DNES</div><div class="value" id="costDay">0 Kč</div></div>
   <div><div class="sub">CENA MĚSÍC</div><div class="value" id="costMonth">0 Kč</div></div>
 </div>
-
-<br>
-<button id="historyBtn">📅 Denní historie spotřeby</button>
-<button id="monthHistoryBtn">📆 Měsíční historie spotřeby</button>
-<button id="totalHistoryBtn">📈 Celková historie spotřeby</button>
-</div>
-
-<div id="historyBox" class="card" style="display:none;margin-top:20px">
-  <table><tbody id="historyTable"></tbody></table>
-</div>
-<div id="monthHistoryBox" class="card" style="display:none;margin-top:20px">
-  <table><tbody id="monthHistoryTable"></tbody></table>
-</div>
-<div id="totalHistoryBox" class="card" style="display:none;margin-top:20px">
-  <table><tbody id="totalHistoryTable"></tbody></table>
-</div>
-
-<div class="card">
-<h2>⚙️ Nastavení</h2>
-<div class="settings">
-  <div><label>Kg uhlí / 10 min</label><input type="number" id="kg10min"></div>
-  <div><label>Cena / kg</label><input type="number" id="priceKg"></div>
-</div>
 </div>
 
 </main>
 
 <script>
-/* ====== NASTAVENÍ KANÁLŮ ====== */
-const CHANNEL = 231269;        // hlavní kanál (kotel)
-const OUT_CHANNEL = 774246;    // ← SEM dej ID kanálu s venkovní teplotou
-const OUT_FIELD = 1;           // ← field číslo (1–8)
+const CHANNEL = 231269;
+
+/* ===== VENKOVNÍ KANÁL ===== */
+const OUT_CHANNEL = 774246; // ← ID kanálu venkovní teploty
+const OUT_FIELD   = 1;      // ← field (1–8)
 
 const ENERGY = 4.8;
 const EFF = 0.75;
 
-/* ====== INIT ====== */
 kg10min.value = localStorage.kg10min || 2.5;
 priceKg.value = localStorage.priceKg || 6.2;
 
@@ -154,57 +131,55 @@ function secToKg(sec){
   return Math.max(0,(sec/600)*(+kg10min.value||2.5));
 }
 
-async function fetchFeeds(ch, p){
-  const r = await fetch(`https://api.thingspeak.com/channels/${ch}/feeds.json?${p}`);
-  return (await r.json()).feeds || [];
+async function fetchFeeds(p){
+  try{
+    const r=await fetch(`https://api.thingspeak.com/channels/${CHANNEL}/feeds.json?${p}`);
+    return (await r.json()).feeds||[];
+  }catch(e){return[];}
 }
 
-/* ====== HLAVNÍ DATA ====== */
+async function fetchOutside(){
+  try{
+    const r=await fetch(`https://api.thingspeak.com/channels/${OUT_CHANNEL}/feeds.json?results=1`);
+    const j=await r.json();
+    return j.feeds||[];
+  }catch(e){return[];}
+}
+
 async function updateCurrent(){
-  const f = (await fetchFeeds(CHANNEL,"results=1"))[0];
-  if(!f) return;
+  const cur=await fetchFeeds("results=1");
+  if(!cur.length)return;
+  const f=cur[0];
+  const tK=+f.field5||0;
+  const tZ=+f.field1||0;
 
-  const tK = +f.field5 || 0;
-  const tZ = +f.field1 || 0;
+  tKotel.textContent=tK.toFixed(1)+" °C";
+  tZpet.textContent=tZ.toFixed(1)+" °C";
+  deltaT.textContent=(tK-tZ).toFixed(1)+" °C";
 
-  tKotel.textContent = tK.toFixed(1)+" °C";
-  tZpet.textContent  = tZ.toFixed(1)+" °C";
-  deltaT.textContent = (tK-tZ).toFixed(1)+" °C";
-  feedTotal.textContent = secToHMS(+f.field8||0);
+  const totalSec=+f.field8||0;
+  feedTotal.textContent=secToHMS(totalSec);
 }
 
-/* ====== VENKOVNÍ TEPLOTA – JINÝ KANÁL ====== */
-async function updateOutsideTemp(){
-  const f = (await fetchFeeds(OUT_CHANNEL,"results=1"))[0];
-  if(!f) return;
+/* ===== VENKU – JINÝ KANÁL ===== */
+async function updateVenku(){
+  const f=(await fetchOutside())[0];
+  if(!f)return;
 
-  const t = +f[`field${OUT_FIELD}`];
+  const t=+f[`field${OUT_FIELD}`];
   if(!isNaN(t)){
-    tVenku.textContent = t.toFixed(1)+" °C";
+    tVenku.textContent=t.toFixed(1)+" °C";
   }
 }
 
-/* ====== SPOTŘEBA ====== */
-async function updateHour(){
-  const f = await fetchFeeds(CHANNEL,"minutes=60&results=120");
-  if(f.length<2) return;
-  const kg = secToKg(f.at(-1).field8 - f[0].field8);
-  kgHour.textContent = kg.toFixed(2)+" kg";
-  powerKWbig.textContent = (kg*ENERGY*EFF).toFixed(1)+" kWh";
-}
-
-/* ====== START ====== */
 updateClock();
 updateCurrent();
-updateOutsideTemp();
-updateHour();
+updateVenku();
 
 setInterval(updateClock,1000);
 setInterval(updateCurrent,30000);
-setInterval(updateOutsideTemp,300000);
-setInterval(updateHour,300000);
+setInterval(updateVenku,300000);
 
-/* ====== FULLSCREEN ====== */
 fullscreenBtn.onclick = () => {
   document.fullscreenElement
     ? document.exitFullscreen()
