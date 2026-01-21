@@ -208,7 +208,10 @@ footer img:hover{
 </main>
 
 <script>
-const CHANNEL = 231269;
+const CHANNEL = 231269;        // hlavní kanál (kotel)
+const OUT_CHANNEL = 774246;    // ← SEM dej ID kanálu s venkovní teplotou
+const OUT_FIELD = 1;           // ← field číslo (1–8)
+
 const ENERGY = 4.8;
 const EFF = 0.75;
 
@@ -268,11 +271,26 @@ async function updateCurrent(){
   tKotel.textContent=tK.toFixed(1)+" °C";
   tZpet.textContent=tZ.toFixed(1)+" °C";
   
-  tVenku.textContent=(+f.field4||0).toFixed(1)+" °C";
+  
   deltaT.textContent=(tK-tZ).toFixed(1)+" °C";
 
   const totalSec=+f.field8||0;
   feedTotal.textContent=secToHMS(totalSec);
+}
+async function updateOutsideTemp(){
+  try{
+    const r = await fetch(
+      `https://api.thingspeak.com/channels/${OUT_CHANNEL}/feeds.json?results=1`
+    );
+    const j = await r.json();
+    const f = j.feeds?.[0];
+    if(!f) return;
+
+    const t = +f[`field${OUT_FIELD}`];
+    if(!isNaN(t)){
+      tVenku.textContent = t.toFixed(1) + " °C";
+    }
+  }catch(e){}
 }
 
 async function updateHour(){
@@ -384,13 +402,14 @@ totalHistoryBtn.onclick = async () => {
 kg10min.oninput=()=>{localStorage.kg10min=kg10min.value;updateHour();updateDay();updateMonth();}
 priceKg.oninput=()=>{localStorage.priceKg=priceKg.value;updateDay();updateMonth();}
 
-updateClock();updateCurrent();updateHour();updateDay();updateMonth();
+updateClock();updateCurrent();updateHour();updateDay();updateMonth();updateOutsideTemp();
 setInterval(updateClock,1000);
 setInterval(updateCurrent,30000);
 setInterval(updateHour,300000);
 setInterval(updateDay,900000);
 setInterval(updateMonth,1800000);
-
+setInterval(updateOutsideTemp,300000);
+  
 fullscreenBtn.onclick = () => {
   const elem = document.documentElement; // celý dokument
   if (!document.fullscreenElement && !document.webkitFullscreenElement) {
